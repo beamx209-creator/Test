@@ -1,89 +1,115 @@
---[[-------------------------------------------------------
-Main.lua - Example Script with GUI Toggle and Commands
----------------------------------------------------------]]
-
--- Global Settings
-getgenv().ScriptSettings = {
-    MainAccount = "lawakaitun5BD5",
-    Configs = {
-        Prefix = ".",
-        Mask = "ninja",
-        Gun = "ak47",
-        Melee = "stop",
-        FPSCap = 0,
-        CameraOnMain = true,
+local new = { 
+    main = { 
+        Mario = true,
+        Prediction = 0.1659992222222,
+        Part = "HumanoidRootPart", -- Head, UpperTorso, HumanoidRootPart, LowerTorso, RightFoot, LeftFoot, RightArm, LeftArm 
+        Key = "q",
+        Notifications = true,
+        AirshotFunc = true
     },
+    Tracer = { 
+        TracerThickness = 3.5, -- made by thusky
+        TracerTransparency = 1, -- made by thusky
+        TracerColor = Color3.fromRGB(153, 50, 204) -- made by thusky
+    }
 }
 
--- Command Table
-getgenv().ScriptCommands = {
-    ["Fix Script"] = "fix",
-    ["Reset Stand"] = "reset",
-    ["Ascend"] = "summon",
-    ["Descend"] = "vanish",
-    ["Kill Player"] = "kill",
-    ["Teleport Player"] = "tp",
-    ["Auto Heal"] = "aheal",
-    ["Auto Armor"] = "aarmor",
-    -- เพิ่มคำสั่งอื่น ๆ ได้ตามต้องการ
-}
 
--- GUI Setup
-local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
+local CurrentCamera = game:GetService "Workspace".CurrentCamera
+local Mouse = game.Players.LocalPlayer:GetMouse()
+local RunService = game:GetService("RunService")
+local Plr = game.Players.LocalPlayer
+local Line = Drawing.new("Line")
+local Inset = game:GetService("GuiService"):GetGuiInset().Y
 
--- ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MyScriptGUI"
-screenGui.Parent = PlayerGui
-screenGui.ResetOnSpawn = false
-
--- Main Frame
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-mainFrame.Visible = true
-mainFrame.Parent = screenGui
-
--- Toggle Button
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 100, 0, 30)
-toggleButton.Position = UDim2.new(0, 10, 0, 10)
-toggleButton.Text = "Toggle GUI"
-toggleButton.Parent = mainFrame
-
-toggleButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
+Mouse.KeyDown:Connect(function(KeyPressed)
+    if KeyPressed == (new.main.Key) then
+        if new.main.Mario == true then
+            new.main.Mario = false
+            if new.main.Notifications == true then
+                Plr = FindClosestUser()
+                game.StarterGui:SetCore("SendNotification", {
+                    Title = "<3",
+                    Text = "No longer locked on"
+                })
+            end
+        else
+            Plr = FindClosestUser()
+            new.main.Mario = true
+            if new.main.Notifications == true then
+                game.StarterGui:SetCore("SendNotification", {
+                    Title = "<3",
+                    Text = "Locked on to:" .. tostring(Plr.Character.Humanoid.DisplayName)
+                })
+            end
+        end
+    end
 end)
 
--- Title
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -20, 0, 30)
-title.Position = UDim2.new(0, 10, 0, 50)
-title.Text = "Script Commands"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.BackgroundTransparency = 1
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
-title.Parent = mainFrame
+function FindClosestUser()
+    local closestPlayer
+    local shortestDistance = math.huge
 
--- Buttons for Commands
-local yPos = 90
-for name, cmd in pairs(getgenv().ScriptCommands) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -20, 0, 25)
-    btn.Position = UDim2.new(0, 10, 0, yPos)
-    btn.Text = name
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Parent = mainFrame
+    for i, v in pairs(game.Players:GetPlayers()) do
+        if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("Humanoid") and
+            v.Character.Humanoid.Health ~= 0 and v.Character:FindFirstChild("HumanoidRootPart") then
+            local pos = CurrentCamera:WorldToViewportPoint(v.Character.PrimaryPart.Position)
+            local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).magnitude
+            if magnitude < shortestDistance then
+                closestPlayer = v
+                shortestDistance = magnitude
+            end
+        end
+    end
+    return closestPlayer
+end
 
-    btn.MouseButton1Click:Connect(function()
-        print("Executing command:", getgenv().ScriptSettings.Configs.Prefix..cmd)
-        -- ตัวอย่างการเรียก command (คุณสามารถแทนด้วย RemoteEvent ของเกมได้)
-        -- game.ReplicatedStorage.Remotes.Command:FireServer(getgenv().ScriptSettings.Configs.Prefix..cmd)
-    end)
-    yPos = yPos + 30
+
+
+
+RunService.Stepped:connect(function()
+    if new.main.Mario == true then
+        local Vector = CurrentCamera:WorldToViewportPoint(Plr.Character[new.main.Part].Position +
+                                                              (Plr.Character.HumanoidRootPart.Velocity *
+                                                                  new.main.Prediction))
+        Line.Color = new.Tracer.TracerColor                                                                          -- made by thusky
+        Line.Thickness = new.Tracer.TracerThickness
+        Line.Transparency = new.Tracer.TracerTransparency
+ 
+
+        Line.From = Vector2.new(Mouse.X, Mouse.Y + Inset)
+        Line.To = Vector2.new(Vector.X, Vector.Y)
+        Line.Visible = true
+    else
+        Line.Visible = false
+
+    end
+end)
+
+
+local mt = getrawmetatable(game)
+local old = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(...)
+    local args = {...}
+    if new.main.Mario and getnamecallmethod() == "FireServer" and args[2] == "UpdateMousePos" then
+        args[3] = Plr.Character[new.main.Part].Position +
+                      (Plr.Character[new.main.Part].Velocity * new.main.Prediction)
+        return old(unpack(args))
+    end
+    return old(...)
+end)
+
+if new.main.AirshotFunc == true then
+    if Plr.Character.Humanoid.Jump == true and Plr.Character.Humanoid.FloorMaterial == Enum.Material.Air then
+        settings.main.Part = "RightFoot"
+    else
+        Plr.Character:WaitForChild("Humanoid").StateChanged:Connect(function(old,new)
+            if new == Enum.HumanoidStateType.Freefall then
+                settings.main.Part = "RightFoot"
+            else
+                settings.main.Part = "LowerTorso"
+            end
+        end)
+    end
 end
